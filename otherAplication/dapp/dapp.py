@@ -3,6 +3,9 @@ import logging
 import requests
 import json
 import logging
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 
 logging.basicConfig(level="INFO")
 logger = logging.getLogger(__name__)
@@ -23,6 +26,23 @@ def str2hex(str):
     """
     return "0x" + str.encode("utf-8").hex()
 
+def verify_signature(public_key_pem, message, signature):
+    # Load the public key from PEM format
+    public_key = load_pem_public_key(public_key_pem)
+
+    try:
+        # Verify the signature using the public key
+        public_key.verify(
+            signature,
+            message,
+            padding.PKCS1v15(),
+            hashes.SHA256()
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Signature verification failed: {e}")
+        return False
+
 def handle_advance(data):
     logger.info(f"Received advance request data {data}")
 
@@ -30,23 +50,58 @@ def handle_advance(data):
         # Decode the payload from hex to string
         payload = hex2str(data['payload'])
         jsonInput = json.loads(payload)
-        logger.info(f"Decoded payload: {payload}")
+        logger.info(f"Decoded payload: {jsonInput}")
+
+        # Extract data from the decoded payload
+        public_key_pem = jsonInput["public_key"].encode('utf-8')
+        isRevogated = jsonInput["revogation"]
+        raw_message = jsonInput["raw_message"].encode('utf-8')
+        signature = bytes.fromhex(jsonInput["signed_message"])
 
         # Load the local JSON file
-        local_json_file_path = local_json_file_path
         with open(local_json_file_path, "r") as file:
             local_json_content = json.load(file)
 
-        for i in range(len(local_json_content)):
-            if local_json_content[i]["public_key"] == jsonInput["public_key"]:
-                if local_json_content[i]["revogation"] == False:
+        # Check if the public key is already revoked in the local JSON
+        for entry in local_json_content:
+            if entry["public_key"] == jsonInput["public_key"]:
+                if entry["revogation"] == False:
+                    logger.info(f"Public key {public_key_pem.decode('utf-8')} is already present and not revoked.")
                     return "reject"
+
+        # If the message is marked as revoked, update the local JSON
+        if isRevogated:
+            updated = False
+            for entry in local_json_content:
+                if entry["public_key"] == public_key_pem.decode('utf-8'):
+                    entry["revogation"] = False
+                    updated = True
+                    break
+            
+            # Save the updated local JSON content back to the file
+            if updated:
+                with open(local_json_file_path, "w") as file:
+                    json.dump(local_json_content, file, indent=4)
+                logger.info(f"Updated revogation status for public key {public_key_pem.decode('utf-8')}.")
+            else:
+                logger.info(f"No matching public key found to update revogation status.")
+            
+            hex_payload = str2hex(json.dumps(jsonInput))
+            response = requests.post(rollup_server + "/report", json={"payload": hex_payload})
+            logger.info(f"Sent report status {response.status_code}")
+            return "accept"
+        
+        # Verifying the RSA signature based on the public key
+        if verify_signature(public_key_pem, raw_message, signature):
+            logger.info("Signature verification successful.")
+            return "accept"
+        else:
+            logger.info("Signature verification failed.")
+            return "reject"
 
     except Exception as e:
         logger.error(f"Failed to process advance request: {e}")
         return "reject"
-
-    return "accept"
 
 def handle_inspect(data):
     logger.info(f"Received inspect request data {data}")
