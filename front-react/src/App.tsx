@@ -6,15 +6,12 @@ import SendERC721 from "./components/SendERC721";
 import SendEther from "./components/SendEther";
 import SimpleInput from "./components/SimpleInput";
 import Vouchers from "./components/Vouchers";
-
+import SimpleCalculator from "./components/SimpleCalculator";
 function App() {
   return (
     <>
       <Account />
-      <SimpleInput />
-      <SendEther />
-      <SendERC20 />
-      <SendERC721 />
+      <SimpleCalculator />
       <Notices />
       <Reports />
       <Vouchers />
