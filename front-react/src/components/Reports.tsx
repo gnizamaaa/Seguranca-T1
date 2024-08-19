@@ -39,7 +39,7 @@ const Reports = () => {
 
   return (
     <div className="max-w-4xl mx-auto mt-10 p-6 bg-white rounded-lg shadow-xl">
-      <h2 className="text-3xl font-bold text-center mb-6">Reports</h2>
+      <h2 className="text-3xl font-bold text-center mb-6" style={{ color: '#000000' }}>Reports</h2>
       <table className="min-w-full divide-y divide-gray-200 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
         <thead>
           <tr>
