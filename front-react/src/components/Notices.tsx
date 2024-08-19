@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { fetchGraphQLData } from '../utils/api';
 import { Notice } from '../utils/types';
@@ -8,6 +7,14 @@ const Notices = () => {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const hexToString = (hex: string) => {
+    let str = '';
+    for (let i = 0; i < hex.length; i += 2) {
+      str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return str;
+  };
 
   useEffect(() => {
     const fetchNotices = async () => {
@@ -43,7 +50,7 @@ const Notices = () => {
             <tr key={idx} className="hover:bg-purple-700 transition-colors duration-300">
               <td className="px-4 py-2">{notice.index}</td>
               <td className="px-4 py-2">{notice.input.index}</td>
-              <td className="px-4 py-2">{notice.payload}</td>
+              <td className="px-4 py-2">{hexToString(notice.payload)}</td> {/* Decode the payload */}
             </tr>
           ))}
         </tbody>
